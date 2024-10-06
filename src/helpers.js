@@ -1,6 +1,6 @@
 // Get a CryptoCompare API key CryptoCompare https://www.cryptocompare.com/coins/guides/how-to-use-our-api/
 export const apiKey =
-"<api-key>";
+"bf546eb9615c5803025904dc541eb999e1585fe5c745905bfd7673ea7150ff6c";
 // Makes requests to CryptoCompare API
 export async function makeApiRequest(path) {
 	try {
