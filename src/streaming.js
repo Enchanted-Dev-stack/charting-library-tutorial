@@ -12,9 +12,14 @@ export function subscribeOnStream(
 ) {
   const symbol = formatBinanceSymbol(symbolInfo.name);
   const interval = getBinanceInterval(resolution);
-  const wsUrl = `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`;
 
-  console.log(`[subscribeOnStream]: Connecting to ${wsUrl}`);
+  if (interval !== '1s' && interval !== '1m') {
+    console.error(`[subscribeOnStream]: Invalid interval for streaming: ${interval}`);
+    return;
+  }
+
+  const wsUrl = `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`;
+  console.log(`[subscribeOnStream]: Connecting to ${wsUrl} for resolution ${resolution}`);
 
   const socket = new WebSocket(wsUrl);
 
@@ -32,17 +37,13 @@ export function subscribeOnStream(
 
   socket.addEventListener('message', (event) => {
     const data = JSON.parse(event.data);
-    // console.log('[socket] Message:', data);
 
-    // Check if the event is a kline event
     if (data.e === 'kline') {
       const kline = data.k;
 
-      // Process only if the kline is closed (final)
-      if (kline.x) {
-        // Extract relevant data from the kline
+      if (kline.x) {  // Only process closed klines
         const bar = {
-          time: kline.t, // Kline start time in milliseconds
+          time: kline.t,
           open: parseFloat(kline.o),
           high: parseFloat(kline.h),
           low: parseFloat(kline.l),
@@ -50,47 +51,12 @@ export function subscribeOnStream(
           volume: parseFloat(kline.v),
         };
 
-        console.log(`[socket] Received closed kline bar:`, bar);
-
-        // Find the subscription for this subscriber
-        const subscriptionItem = channelToSubscription.get(subscriberUID);
-        if (subscriptionItem) {
-          const previousBarTime = subscriptionItem.lastBar ? subscriptionItem.lastBar.time : null;
-
-          if (previousBarTime && bar.time <= previousBarTime) {
-            console.error(
-              `Time order violation, prev: ${new Date(previousBarTime).toISOString()}, cur: ${new Date(bar.time).toISOString()}`
-            );
-            return;
-          }
-
-          // Update the last bar
-          subscriptionItem.lastBar = bar;
-
-          // Send the bar to the subscribed callback
-          subscriptionItem.onRealtimeCallback(bar);
-        } else {
-          console.log('[socket] No subscription found for subscriberUID:', subscriberUID);
-        }
-      } else {
-        // Kline is not closed yet; ignore for now
-        // console.log('[socket] Kline not closed yet; ignoring');
+        onRealtimeCallback(bar);
       }
-    } else {
-      console.log('[socket] Received non-kline message:', data);
     }
   });
 
-  // Save the subscription
-  channelToSubscription.set(subscriberUID, {
-    socket,
-    symbolInfo,
-    resolution,
-    onRealtimeCallback,
-    lastBar,
-  });
-
-  console.log('[subscribeOnStream]: Subscription saved for subscriberUID:', subscriberUID);
+  channelToSubscription.set(subscriberUID, { socket, resolution, onRealtimeCallback });
 }
 
 export function unsubscribeFromStream(subscriberUID) {
@@ -103,16 +69,13 @@ export function unsubscribeFromStream(subscriberUID) {
     }
     channelToSubscription.delete(subscriberUID);
     console.log('[unsubscribeBars]: Unsubscribed with subscriberUID:', subscriberUID);
-  } else {
-    console.log('[unsubscribeBars]: No subscription found for subscriberUID:', subscriberUID);
   }
 }
 
-// Helper functions
 function getBinanceInterval(resolution) {
-  // Map TradingView resolutions to Binance intervals
   const resolutionsMap = {
-    '1': '1m',
+    '1S': '1s',  // 1-second resolution for Binance
+    '1': '1m',   // 1-minute resolution
     '5': '5m',
     '15': '15m',
     '30': '30m',
@@ -126,9 +89,7 @@ function getBinanceInterval(resolution) {
 }
 
 function formatBinanceSymbol(symbol) {
-  // Convert symbol from 'BTC/USDT' to 'btcusdt' as per Binance's format
   let formattedSymbol = symbol.replace('/', '').toLowerCase();
-  // Handle 'USD' to 'USDT' conversion if needed
   if (formattedSymbol.endsWith('usd')) {
     formattedSymbol = formattedSymbol.replace('usd', 'usdt');
   }
