@@ -3,7 +3,7 @@ import Datafeed from './datafeed.js';
 
 window.tvWidget = new TradingView.widget({
 	symbol: 'BTC/USDT',  // Default symbol
-	interval: '1S',      // Set default to 1-second interval
+	interval: '1',      // Set default to 1-second interval
 	fullscreen: true,    // Displays the chart in fullscreen mode
 	container: 'tv_chart_container',
 	datafeed: Datafeed,
@@ -11,4 +11,5 @@ window.tvWidget = new TradingView.widget({
 	enabled_features: ['seconds_resolution'],  // Enable seconds resolution support
 	timezone: 'Asia/Kolkata',
 	library_path: '../charting_library_cloned_data/charting_library/',
+	theme: 'Dark',
 });
