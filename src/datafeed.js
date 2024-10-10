@@ -21,6 +21,7 @@ const configurationData = {
 // Define your custom symbols
 const customSymbols = [
   { symbol: 'BTC/USDT', full_name: 'BTC/USDT', exchange: 'Custom API', type: 'crypto' },
+  { symbol: 'ETH/USDT', full_name: 'ETH/USDT', exchange: 'Custom API', type: 'crypto' },
 ];
 
 // Function to get all symbols
@@ -82,7 +83,7 @@ export default {
   
     try {
       // Use your custom API instead of Binance API
-      const url = `http://localhost:8000/api/v1/stockData?symbol=${symbolInfo.name}&resolution=${resolution}&from=${from}&to=${to}`;
+      const url = `https://chart-influx-api-hv5mm.ondigitalocean.app/api/v1/stockData/?symbol=${symbolInfo.name}&resolution=${resolution}&from=${from}&to=${to}`;
       console.log(`[getBars]: Fetching data from ${url}`);
       
       const response = await fetch(url);

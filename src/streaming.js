@@ -17,13 +17,15 @@ export function subscribeOnStream(
   onResetCacheNeededCallback,
   lastBar
 ) {
+  const existingSubscription = channelToSubscription.get(subscriberUID);
+  
+  // Close previous WebSocket if already subscribed
+  if (existingSubscription) {
+    unsubscribeFromStream(subscriberUID);
+  }
+
   const symbol = formatBinanceSymbol(symbolInfo.name);
   const interval = getBinanceInterval(resolution);
-
-  if (interval !== '1s' && interval !== '1m') {
-    console.error(`[subscribeOnStream]: Invalid interval for streaming: ${interval}`);
-    return;
-  }
 
   const wsUrl = `wss://stream.binance.com:9443/ws/${symbol}@kline_${interval}`;
   console.log(`[subscribeOnStream]: Connecting to ${wsUrl} for resolution ${resolution}`);
@@ -56,15 +58,9 @@ export function subscribeOnStream(
         volume: parseFloat(kline.v),
       };
 
-      // Debug log to print the time of the received kline (candle) in Asia/Kolkata time
-      const indiaTime = convertToIndiaTime(kline.t);
-      console.log(`[socket message]: Received kline at India time: ${indiaTime} | UTC time: ${new Date(kline.t).toISOString()} | open: ${bar.open}, close: ${bar.close}`);
-
       if (resolution === '5S' || resolution === '10S') {
-        console.log(`[aggregateData]: Aggregating for resolution ${resolution}`);
         aggregateData(bar, resolution, onRealtimeCallback);
       } else if (kline.x) {
-        console.log(`[onRealtimeCallback]: Sending new bar for India time: ${indiaTime}`);
         onRealtimeCallback(bar);
       }
     }
@@ -77,11 +73,7 @@ function aggregateData(bar, resolution, onRealtimeCallback) {
   const aggregationInterval = resolution === '5S' ? 5000 : 10000;
   const currentTime = Math.floor(bar.time / aggregationInterval) * aggregationInterval;
 
-  const indiaTime = convertToIndiaTime(bar.time);
-  console.log(`[aggregateData]: Bar time: India time: ${indiaTime} | Aggregated time: ${convertToIndiaTime(currentTime)}`);
-
   if (lastTime === null || currentTime === lastTime) {
-    console.log(`[aggregateData]: Pushing bar to buffer at India time: ${indiaTime}`);
     buffer.push(bar);
   } else {
     const aggregatedBar = {
@@ -93,7 +85,6 @@ function aggregateData(bar, resolution, onRealtimeCallback) {
       volume: buffer.reduce((sum, b) => sum + b.volume, 0),
     };
 
-    console.log(`[aggregateData]: Aggregated bar | Time: India time: ${convertToIndiaTime(aggregatedBar.time)} | open: ${aggregatedBar.open}, close: ${aggregatedBar.close}`);
     onRealtimeCallback(aggregatedBar);
     buffer = [bar];
   }
